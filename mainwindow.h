@@ -30,6 +30,10 @@ private slots:
 
     void on_exit_clicked();
 
+    void on_i2c_clicked();
+
+    void on_ois_clicked();
+
 private:
     Ui::MainWindow *ui;
     QSize qs;

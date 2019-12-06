@@ -101,7 +101,7 @@ void get_fmt()
 
 void init_reqbuf()
 {
-    req.count = 20;
+    req.count = 8;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) == -1)
@@ -164,7 +164,7 @@ void stream_on()
     return;
 }
 
-void get_frame(void **frame_start, unsigned int *len)
+int get_frame(void **frame_start, unsigned int *len)
 {
     struct v4l2_buffer buf;
     memset(&buf, 0, sizeof(buf));
@@ -180,8 +180,8 @@ void get_frame(void **frame_start, unsigned int *len)
     *frame_start = buffer[buf.index].start;
     *len = buffer[buf.index].length;
 
-    //uIndex = buf.index;
-    //printf("uIndex %d\n", uIndex);
+    uIndex = buf.index;
+    //qDebug() <<uIndex;
 
     // 将这一帧放回队列
     if (ioctl(fd, VIDIOC_QBUF, &buf) == -1)
@@ -191,7 +191,7 @@ void get_frame(void **frame_start, unsigned int *len)
     }
     //printf("VIDIOC_QBUF succeed!\n\n");
 
-    return;
+    return uIndex;
 }
 
 void save_picture(char *filename, unsigned char *file_data)

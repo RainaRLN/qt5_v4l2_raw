@@ -43,7 +43,7 @@ void set_fmt();
 void get_fmt();
 void init_reqbuf();
 void stream_on();
-void get_frame(void **frame_start, unsigned int *len);
+int get_frame(void **frame_start, unsigned int *len);
 void save_picture(char *filename, unsigned char *file_data);
 void stream_off();
 void exit_failure();

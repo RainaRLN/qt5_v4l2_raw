@@ -40,12 +40,14 @@ SOURCES += \
         capture.cpp \
         main.cpp \
         mainwindow.cpp \
-    convert.cpp
+    convert.cpp \
+    reg_config.cpp
 
 HEADERS += \
         capture.h \
         convert.h \
-        mainwindow.h
+        mainwindow.h \
+    reg_config.h
 
 FORMS += \
         mainwindow.ui
