@@ -38,7 +38,7 @@ private:
     Ui::MainWindow *ui;
     QSize qs;
     QTimer *timer = new QTimer();
-    QString dir = "/home/firefly/Pictures";
+    QString dir = "/home/firefly";
     QImage *tempImage;
 };
 

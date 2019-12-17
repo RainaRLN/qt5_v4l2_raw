@@ -37,7 +37,7 @@ MainWindow::MainWindow(QWidget *parent) :
         perror("pchangevideodata error");
     }
 
-    timer->setInterval(3);
+    timer->setInterval(2);
 
     open_device();  // 打开摄像头设备
     //get_capabilities();
@@ -62,8 +62,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_start_clicked()
 {
-    ui->choosePath->setEnabled(false);
-    ui->i2c->setEnabled(false);
     timer->start();
     ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Stream on");
 }
@@ -72,20 +70,18 @@ void MainWindow::on_stop_clicked()
 {
     timer->stop();
     ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Stream off");
-    ui->choosePath->setEnabled(true);
-    ui->i2c->setEnabled(true);
 }
 
 void MainWindow::on_capture_clicked()
 {
     QString path = dir + "/" + ui->filename->text();
-    qDebug() << path;
     SaveBmp1(path.toUtf8().data(), bgr, WIDTH, HEIGHT);
     ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Captured one picture: " + ui->filename->text());
 }
 
 void MainWindow::on_choosePath_clicked()
 {
+    timer->stop();
     QString choose;
     choose = QFileDialog::getExistingDirectory(
                 this,
@@ -97,6 +93,7 @@ void MainWindow::on_choosePath_clicked()
     if(!QString(choose).isEmpty())
         dir = choose;
     ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Save Path: " + dir + "/" + ui->filename->text());
+    timer->start();
 
 }
 
@@ -128,6 +125,7 @@ void MainWindow::on_i2c_clicked()
     FILE *cfg;
     char i2c_buf[50];
     QString i2cFile;
+    timer->stop();
     i2cFile = QFileDialog::getOpenFileName(
                 this,
                 tr("Open IIC File"),
@@ -171,6 +169,7 @@ void MainWindow::on_i2c_clicked()
         while(get_frame((void **)(&bggr), &uDataLength) > 0);
         ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Write Config Successfully!");
     }
+    timer->start();
 
 }
 
