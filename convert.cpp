@@ -32,9 +32,9 @@ void NV12_T_RGB(unsigned int width, unsigned int height, unsigned char *yuyv, un
             if(b < 0)     b = 0;
 
             index = rgb_index % width + (height - i - 1) * width;
-            rgb[index * 3+0] = (unsigned char)b;
-            rgb[index * 3+1] = (unsigned char)g;
-            rgb[index * 3+2] = (unsigned char)r;
+            rgb[index * 3+0] = static_cast<unsigned char>(b);
+            rgb[index * 3+1] = static_cast<unsigned char>(g);
+            rgb[index * 3+2] = static_cast<unsigned char>(r);
             rgb_index++;
         }
     }
@@ -74,7 +74,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestBluesAvg = (*(grbg + currentTempIndex + width) + *(grbg+currentTempIndex-width)) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestBluesAvg; //b
+                *bgrOutputDat = static_cast<unsigned char>(nearestBluesAvg); //b
                 bgrOutputDat++;
                 *bgrOutputDat = *(grbg + currentTempIndex); //g
                 bgrOutputDat++;
@@ -87,7 +87,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestRedsAvg = ( (*(grbg+currentTempIndex+1)) + (*(grbg+currentTempIndex-1)) ) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestRedsAvg; //r
+                *bgrOutputDat = static_cast<unsigned char>(nearestRedsAvg); //r
                 bgrOutputDat++;
 
                 currentTempIndex++;
@@ -103,11 +103,11 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestBluesAvg = (*(grbg+currentTempIndex+1+width) + *(grbg+currentTempIndex-1+width)) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestBluesAvg; //b
+                *bgrOutputDat = static_cast<unsigned char>(nearestBluesAvg); //b
                 bgrOutputDat++;
                 //avg green
                 nearestGreensAvg = (*(grbg+currentTempIndex-1) + *(grbg+currentTempIndex+width)) / 2;
-                *bgrOutputDat = (unsigned char)nearestGreensAvg;  //g
+                *bgrOutputDat = static_cast<unsigned char>(nearestGreensAvg);  //g
                 bgrOutputDat++;
                 *bgrOutputDat = *(grbg + currentTempIndex); //r
                 bgrOutputDat++;
@@ -124,7 +124,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 bgrOutputDat++;
                 //avg green
                 nearestGreensAvg = (*(grbg + currentTempIndex + 1) + *(grbg + currentTempIndex -width)) / 2;
-                *bgrOutputDat = (unsigned char)nearestGreensAvg; //g
+                *bgrOutputDat = static_cast<unsigned char>(nearestGreensAvg); //g
                 bgrOutputDat++;
                 //avg red
                 if(i == 0) //if first column, take only right-up pixel
@@ -135,7 +135,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestRedsAvg = (*(grbg+currentTempIndex-1-width) + *(grbg+currentTempIndex+1-width)) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestRedsAvg; //r
+                *bgrOutputDat = static_cast<unsigned char>(nearestRedsAvg); //r
                 bgrOutputDat++;
 
                 currentTempIndex++;
@@ -152,7 +152,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestBluesAvg = (*(grbg+currentTempIndex+1) + *(grbg+currentTempIndex-1)) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestBluesAvg; //b
+                *bgrOutputDat = static_cast<unsigned char>(nearestBluesAvg); //b
                 bgrOutputDat++;
                 *bgrOutputDat = *(grbg + currentTempIndex); //g
                 bgrOutputDat++;
@@ -165,7 +165,7 @@ void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, un
                 {
                     nearestRedsAvg = (*(grbg+currentTempIndex+width) + *(grbg+currentTempIndex-width)) / 2;
                 }
-                *bgrOutputDat = (unsigned char)nearestRedsAvg; //r
+                *bgrOutputDat = static_cast<unsigned char>(nearestRedsAvg); //r
                 bgrOutputDat++;
 
                 currentTempIndex++;
@@ -190,17 +190,17 @@ void rgb_adjust(unsigned int width, unsigned int height, unsigned char *rgb, dou
         }
         if ((*(rgb + i)>253))
         {
-            *(rgb + i) = (unsigned char)pow(*(rgb+i), 0.957);
-            *(rgb + i+1) = (unsigned char)pow(*(rgb+i), 0.985);
-            *(rgb + i-1) = (unsigned char)pow(*(rgb+i), 0.98);
+            *(rgb + i) = static_cast<unsigned char>(pow(*(rgb+i), 0.957));
+            *(rgb + i+1) = static_cast<unsigned char>(pow(*(rgb+i), 0.985));
+            *(rgb + i-1) = static_cast<unsigned char>(pow(*(rgb+i), 0.98));
             continue;
         }
-        *(rgb + i) = (unsigned char)pow(*(rgb+i), n);
+        *(rgb + i) = static_cast<unsigned char>(pow(*(rgb+i), n));
 
     }
 }
 
-void SaveBmp1(const char *filename, unsigned char *rgb, int width, int height)
+void SaveBmp(const char *filename, unsigned char *rgb, int width, int height)
 {
     BITMAPFILEHEADER bf;
     BITMAPINFOHEADER bi;
@@ -208,14 +208,14 @@ void SaveBmp1(const char *filename, unsigned char *rgb, int width, int height)
     bf.bfReserved1 = 0;
     bf.bfReserved2 = 0;
     /*其中这两项为何减去2，是因为结构体对齐问题，sizeof(BITMAPFILEHEADER)并不是14，而是16*/
-    bf.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)+width*height*3-2;
+    bf.bfSize = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)+static_cast<unsigned int>(width*height*3-2);
     bf.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)-2;//0x36
     bi.biSize = sizeof(BITMAPINFOHEADER);
-    bi.biWidth = (unsigned int)width;
+    bi.biWidth = static_cast<int>(width);
     bi.biHeight = -height;//
     bi.biBitCount = 24;
     bi.biCompression = 0;
-    bi.biSizeImage = width*height*3;
+    bi.biSizeImage = static_cast<unsigned int>(width*height*3);
     bi.biXPelsPerMeter = 5000;
     bi.biYPelsPerMeter = 5000;
     bi.biClrUsed = 0;
@@ -230,7 +230,7 @@ void SaveBmp1(const char *filename, unsigned char *rgb, int width, int height)
     fwrite(&bf.bftype,2,1,file);
     fwrite((&bf.bftype)+2,12,1,file);
     fwrite(&bi,sizeof(bi),1,file);
-    fwrite(rgb,width*height*3,1,file);
+    fwrite(rgb,static_cast<unsigned int>(width*height*3),1,file);
     fclose(file);
     // printf("SaveBmp succeed!\n");
     return;

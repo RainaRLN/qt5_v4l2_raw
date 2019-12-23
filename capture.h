@@ -20,20 +20,16 @@
 #define HEIGHT 2448
 
 
-static struct buffer
-{
-    void *start;
-    unsigned int length;
-} *buffer;
+extern struct buffer *buffer;
 
-static int fd;
-static struct v4l2_format fmt;
-static struct v4l2_requestbuffers req;
-static unsigned char *bggr;	 /*存放获取的原始视频数据*/
-static unsigned int  uDataLength;  /*存放原始视频数据帧的长度*/
-static unsigned char *bgr;	/*存放转换后的视频数据*/
-static unsigned char *grbg;
-static unsigned int  uIndex;
+extern int fd;
+extern struct v4l2_format fmt;
+extern struct v4l2_requestbuffers req;
+extern unsigned char *bggr;	 /*存放获取的原始视频数据*/
+extern unsigned int  uDataLength;  /*存放原始视频数据帧的长度*/
+extern unsigned char *bgr;	/*存放转换后的视频数据*/
+extern unsigned char *grbg;
+extern unsigned int  uIndex;
 
 void open_device();
 void get_capabilities();
@@ -43,9 +39,9 @@ void set_fmt();
 void get_fmt();
 void init_reqbuf();
 void stream_on();
-int get_frame(void **frame_start, unsigned int *len);
+unsigned int get_frame(void **frame_start, unsigned int *len);
 void save_picture(char *filename, unsigned char *file_data);
 void stream_off();
-void exit_failure();
+void exit_failure() __attribute__((noreturn));
 
 #endif // CAPTURE_H

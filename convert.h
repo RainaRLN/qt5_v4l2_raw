@@ -36,6 +36,6 @@ void NV12_T_RGB(unsigned int width, unsigned int height, unsigned char *yuyv, un
 void BGGR2GRBG(unsigned int width, unsigned int height, unsigned char *bggr, unsigned char *grbg);
 void GRBG2BGR(unsigned int width, unsigned int height, unsigned  char * grbg, unsigned char * bgrOutputDat);
 void rgb_adjust(unsigned int width, unsigned int height, unsigned char *rgb, double n);
-void SaveBmp1(const char *filename, unsigned char *rgb, int width, int height);
+void SaveBmp(const char *filename, unsigned char *rgb, int width, int height);
 
 #endif // CONVERT_H

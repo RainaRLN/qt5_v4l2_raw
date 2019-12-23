@@ -38,16 +38,16 @@ LIBS += -L /usr/local/lib/ -lopencv_imgproc
 
 SOURCES += \
         capture.cpp \
+    config.cpp \
         main.cpp \
         mainwindow.cpp \
-    convert.cpp \
-    reg_config.cpp
+    convert.cpp
 
 HEADERS += \
         capture.h \
+        config.h \
         convert.h \
-        mainwindow.h \
-    reg_config.h
+        mainwindow.h
 
 FORMS += \
         mainwindow.ui

@@ -1,6 +1,23 @@
 ﻿#include "capture.h"
 #include <QDebug>
 
+#pragma pack(1)
+struct buffer
+{
+    unsigned int length;
+    void *start;
+} *buffer;
+#pragma pack()
+
+int fd;
+struct v4l2_format fmt;
+struct v4l2_requestbuffers req;
+unsigned char *bggr;	 /*存放获取的原始视频数据*/
+unsigned int  uDataLength;  /*存放原始视频数据帧的长度*/
+unsigned char *bgr;	/*存放转换后的视频数据*/
+unsigned char *grbg;
+unsigned int  uIndex;
+
 void open_device()
 {
     fd = open(CAMERA_DEVICE, O_RDWR, 0);
@@ -80,9 +97,9 @@ void set_fmt()
         printf("VIDIOC_S_FMT failed!\n\n");
         exit_failure();
     }
-    //printf("VIDIOC_S_FMT succeed!\n\n");
-    //printf("width %d, height %d, pixelformat %#x\n\n", \
-    //    fmt.fmt.pix.width, fmt.fmt.pix.height, fmt.fmt.pix.pixelformat);
+    // printf("VIDIOC_S_FMT succeed!\n\n");
+    /* printf("width %d, height %d, pixelformat %#x\n\n", \
+        fmt.fmt.pix.width, fmt.fmt.pix.height, fmt.fmt.pix.pixelformat);*/
     return;
 }
 
@@ -101,7 +118,7 @@ void get_fmt()
 
 void init_reqbuf()
 {
-    req.count = 8;
+    req.count = 1;
     req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     req.memory = V4L2_MEMORY_MMAP;
     if (ioctl(fd, VIDIOC_REQBUFS, &req) == -1)
@@ -114,7 +131,7 @@ void init_reqbuf()
 
     // 查询缓冲区状态
     unsigned int i = 0;
-    buffer = (struct buffer *)calloc(req.count, sizeof(*buffer));
+    buffer = static_cast<struct buffer *>(calloc(req.count, sizeof(*buffer)));
     for (i=0; i<req.count; i++)
     {
         struct v4l2_buffer buf;
@@ -144,9 +161,9 @@ void init_reqbuf()
             printf("VIDIOC_QBUF failed!\n\n");
             exit_failure();
         }
-        //printf("VIDIOC_QBUF succeed!\
-        //    \nFrame buffer%d: address = 0x%p, length = %d\n\n",\
-        //    i, buffer[i].start, buffer[i].length);
+        /* printf("VIDIOC_QBUF succeed!\
+            \nFrame buffer%d: address = 0x%p, length = %d\n\n",\
+            i, buffer[i].start, buffer[i].length); */
     }
     return;
 }
@@ -164,7 +181,7 @@ void stream_on()
     return;
 }
 
-int get_frame(void **frame_start, unsigned int *len)
+unsigned int get_frame(void **frame_start, unsigned int *len)
 {
     struct v4l2_buffer buf;
     memset(&buf, 0, sizeof(buf));

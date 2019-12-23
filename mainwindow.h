@@ -16,6 +16,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void show_log(QString log);
 
 private slots:
     void on_start_clicked();
@@ -40,6 +41,7 @@ private:
     QTimer *timer = new QTimer();
     QString dir = "/home/firefly";
     QImage *tempImage;
+    int i2c_fd;
 };
 
 #endif // MAINWINDOW_H

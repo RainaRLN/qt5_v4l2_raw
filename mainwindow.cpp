@@ -2,7 +2,7 @@
 #include "ui_mainwindow.h"
 #include "capture.h"
 #include "convert.h"
-#include "reg_config.h"
+#include "config.h"
 #include <QPixmap>
 #include <QImage>
 #include <QDateTime>
@@ -26,25 +26,21 @@ MainWindow::MainWindow(QWidget *parent) :
     QDesktopWidget *desktop = QApplication::desktop();
     move((desktop->width()-this->width())/2, (desktop->height()-this->height())/2);
 
-    grbg = (unsigned char *)malloc(WIDTH * HEIGHT * sizeof(char));
+    grbg = static_cast<unsigned char *>(malloc(WIDTH * HEIGHT * sizeof(char)));
     if(nullptr == grbg)
     {
         perror("pchangevideodata error");
     }
-    bgr = (unsigned char *)malloc(WIDTH * HEIGHT * 3 * sizeof(char));
+    bgr = static_cast<unsigned char *>(malloc(WIDTH * HEIGHT * 3 * sizeof(char)));
     if(nullptr == bgr)
     {
         perror("pchangevideodata error");
     }
 
-    timer->setInterval(2);
+    timer->setInterval(1);
 
     open_device();  // 打开摄像头设备
-    //get_capabilities();
-    //enum_fmt();
-    //try_fmt();
     set_fmt();  // 设置当前格式
-    //get_fmt();
     init_reqbuf();  // 申请缓冲区
     stream_on();
 
@@ -52,7 +48,12 @@ MainWindow::MainWindow(QWidget *parent) :
     qs = ui->image->rect().size();
 
     connect(timer, SIGNAL(timeout()), this, SLOT(showImage()));
-
+    i2c_fd = open_i2cdev(I2C_DEV);
+    if (i2c_fd < 0) {
+        show_log("Couldn't open i2c device!");
+        ui->i2c->setEnabled(false);
+        ui->ois->setEnabled(false);
+    }
 }
 
 MainWindow::~MainWindow()
@@ -63,20 +64,20 @@ MainWindow::~MainWindow()
 void MainWindow::on_start_clicked()
 {
     timer->start();
-    ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Stream on");
+    show_log("Stream on");
 }
 
 void MainWindow::on_stop_clicked()
 {
     timer->stop();
-    ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Stream off");
+    show_log("Stream off");
 }
 
 void MainWindow::on_capture_clicked()
 {
     QString path = dir + "/" + ui->filename->text();
-    SaveBmp1(path.toUtf8().data(), bgr, WIDTH, HEIGHT);
-    ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Captured one picture: " + ui->filename->text());
+    SaveBmp(path.toUtf8().data(), bgr, WIDTH, HEIGHT);
+    show_log("Captured one picture: " + ui->filename->text());
 }
 
 void MainWindow::on_choosePath_clicked()
@@ -90,23 +91,18 @@ void MainWindow::on_choosePath_clicked()
                 QFileDialog::ShowDirsOnly
                 | QFileDialog::DontResolveSymlinks
                 );
-    if(!QString(choose).isEmpty())
+    if (!QString(choose).isEmpty())
         dir = choose;
-    ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Save Path: " + dir + "/" + ui->filename->text());
+    show_log("Save Path: " + dir + "/" + ui->filename->text());
     timer->start();
 
 }
 
 void MainWindow::showImage()
 {
-    unsigned short a = 1;
-    while(a--)
-    {
-        get_frame((void **)(&bggr), &uDataLength);
-    }
+    get_frame(reinterpret_cast<void **>(&bggr), &uDataLength);
     GRBG2BGR(WIDTH, HEIGHT, bggr, bgr);
-    //rgb_adjust(WIDTH, HEIGHT, bgr, 0.93);
-    QImage *tempImage = new QImage((const uchar*)(bgr), WIDTH ,HEIGHT, WIDTH*3, QImage::Format_RGB888);
+    QImage *tempImage = new QImage(static_cast<const uchar*>(bgr), WIDTH ,HEIGHT, WIDTH*3, QImage::Format_RGB888);
     ui->image->setPixmap(QPixmap::fromImage((*tempImage)).scaled(qs));
     //ui->image->setPixmap(QPixmap::fromImage((*tempImage).mirrored(false, true)).scaled(qs));
 }
@@ -119,91 +115,143 @@ void MainWindow::on_exit_clicked()
 
 void MainWindow::on_i2c_clicked()
 {
-    int res;
-    int i2c_fd;
-    int reg, value;
+    OV_DATA ov_data;
     FILE *cfg;
-    char i2c_buf[50];
-    QString i2cFile;
+    static QString i2cFile;
     timer->stop();
-    i2cFile = QFileDialog::getOpenFileName(
-                this,
-                tr("Open IIC File"),
-                "../",
-                "TXT Files(*.txt)"
-                );
-    if(!QString(i2cFile).isEmpty()) {
-        ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "i2c FilePath: " + i2cFile);
-        i2c_fd = open(I2C_DEV, O_RDWR);
-        if(i2c_fd < 0){
-               ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "i2c device open failed");
-               return;
-       }
-        res = ioctl(i2c_fd, I2C_TENBIT, 0);  // not 10bit
-        if(res< 0){
-                ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "I2C_TENBIT failed");
-                return;
+    if (QString(i2cFile).isEmpty()) {
+        i2cFile = QFileDialog::getOpenFileName(
+                    this,
+                    tr("Open IIC File"),
+                    "../configFiles/",
+                    "TXT Files(*.txt)"
+                    );
+    }
+
+    if (!QString(i2cFile).isEmpty()) {
+        show_log("i2c FilePath: " + i2cFile);
+
+        if ((cfg=fopen(i2cFile.toUtf8().data(), "r")) == nullptr) {  // 判断文件是否正常打开
+            show_log("Config File Open Error!");
+            goto iic_cfg_exit;  // 打开失败就退出
         }
-        res = ioctl(i2c_fd, I2C_SLAVE_FORCE, CHIP_ADDR);  // 设置I2C从设备地址[6:0]
-        if(res< 0){
-                ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "I2C_SLAVE failed");
-                return;
-        }
-        if ((cfg=fopen(i2cFile.toUtf8().data(), "r")) == NULL) //判断文件是否正常打开
-        {
-            ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Config File Open Error!");
-            return;               //打开失败就退出
-        }
+        show_log("Config File Open Successfully!");
         int row = 0;
-        while(!feof(cfg))            //文件没到结尾
-        {
-            fscanf(cfg, "%x %x", &reg, &value);	     //十六进制方式读取一个数
-            i2c_buf[0] = value;
-            res = iic_write(i2c_fd, i2c_buf, reg, 1);
+        while (!feof(cfg)) {  // 文件没到结尾
+            fscanf(cfg, "%2hhx%2hhx %hhx", &(ov_data.package.reg_addrH), &(ov_data.package.reg_addrL), &(ov_data.package.value));  // 十六进制方式读取一个数
+            // TODO 跳过空行
+            if (ioctl(i2c_fd, I2C_SLAVE_FORCE, OV_ADDR) < 0) {
+                qDebug("I2C_SLAVE_FORCE failed");
+                goto iic_cfg_exit;  // 打开失败就退出
+            }
+            i2c_transfer(i2c_fd, OV_ADDR, 0, ov_data.i2c_buf, 3);
             ui->regTable->insertRow(row);
-            ui->regTable->setItem(row, 0, new QTableWidgetItem(QString::number(reg).sprintf("0x%04x", reg)));
-            ui->regTable->setItem(row, 1, new QTableWidgetItem(QString::number(value).sprintf("0x%02x", value)));
+            ui->regTable->setItem(row, 0, new QTableWidgetItem(QString().sprintf("0x%02hhx%02hhx", ov_data.package.reg_addrH, ov_data.package.reg_addrL)));
+            ui->regTable->setItem(row, 1, new QTableWidgetItem(QString().sprintf("0x%02hhx", ov_data.package.value)));
             ++row;
         }
-        fclose(cfg);               //操作完毕关闭文件。
-        while(get_frame((void **)(&bggr), &uDataLength) > 0);
-        ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "Write Config Successfully!");
+        fclose(cfg);  //操作完毕关闭文件。
+        while (get_frame(reinterpret_cast<void **>(&bggr), &uDataLength) > 0);
+        show_log("Write Config Successfully!");
+    } else {
+        show_log("Couldn't get IIC Config File Path!");
     }
+
+iic_cfg_exit:
     timer->start();
+    return;
 
 }
 
 void MainWindow::on_ois_clicked()
 {
     static bool ois_on = false;
-    int res;
-    int i2c_fd;
-    char i2c_buf[50];
-    i2c_fd = open(I2C_DEV, O_RDWR);
-    if(i2c_fd < 0){
-           ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "i2c device open failed");
-           return;
-   }
-    res = ioctl(i2c_fd, I2C_TENBIT, 0);  // not 10bit
-    if(res< 0){
-            ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "I2C_TENBIT failed");
-            return;
+    ROHM_DATA ois_switch = {{0}};
+    ROHM_DATA ois_check = {{0}};
+    static QString prog_file;
+    static QString coef_file;
+    timer->stop();
+
+    if (ioctl(i2c_fd, I2C_SLAVE_FORCE, ROHM_ADDR) < 0) {
+        qDebug("I2C_SLAVE_FORCE failed");
+        goto ois_exit;  // 打开失败就退出
     }
-    res = ioctl(i2c_fd, I2C_SLAVE_FORCE, 0x19);  // 设置I2C从设备地址[6:0]
-    if(res< 0){
-            ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "I2C_SLAVE failed");
-            return;
+
+    if (QString(prog_file).isEmpty()){
+        prog_file = QFileDialog::getOpenFileName(
+                    this,
+                    tr("Open OIS Program File"),
+                    "../configFiles/",
+                    "BIN Files(*.bin)"
+                    );
     }
-    i2c_buf[0] = 0x00;i2c_buf[1] = 0x00;i2c_buf[2] = 0x00;i2c_buf[3] = 0x00;i2c_buf[4] = 0x00;i2c_buf[5] = 0x00;i2c_buf[6] = 0x00;
-    if (ois_on) {
-        res = iic_write(i2c_fd, i2c_buf, 0x0100, 7);
-        ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "OIS OFF!");
+    if (QString(coef_file).isEmpty()){
+        coef_file = QFileDialog::getOpenFileName(
+                    this,
+                    tr("Open OIS Coefficient File"),
+                    "../configFiles/",
+                    "MEM Files(*.mem)"
+                    );
+    }
+
+    if (QString(prog_file).isEmpty() || QString(coef_file).isEmpty()) {
+        show_log("Couldn't get Program or Coefficient File Path!");
+        goto ois_exit;
+    }
+
+    ois_switch.package.opCode = _OP_SpecialCMD;
+    if (ois_on) {  // OIS OFF
+        ois_switch.package.data[0] = 0x00;
+        i2c_transfer(i2c_fd, ROHM_ADDR, 0, ois_switch.i2c_buf, 2);
+        show_log("OIS OFF!");
         ui->ois->setText("OIS ON");
         ois_on = false;
-    } else {
-        res = iic_write(i2c_fd, i2c_buf, 0x0105, 7);
-        ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + "OIS ON!");
-        ui->ois->setText("OIS OFF");
-        ois_on = true;
+        goto ois_exit;
     }
+
+    // Check
+    ois_check.msg.opCode = 0x82;
+    ois_check.msg.addr = 0x20;
+    ois_check.msg.data[0] = 0xcd;
+    ois_check.msg.data[1] = 0xef;
+    i2c_transfer(i2c_fd, ROHM_ADDR, 0, ois_check.i2c_buf, 4);
+
+    ois_check.msg.addr = 0x00;
+    i2c_transfer(i2c_fd, ROHM_ADDR, 1, ois_check.i2c_buf, 2, ois_check.msg.data, 2);
+    show_log(QString().sprintf("OpCode = 0x%02hhx Addr = 0x%02hhx Data = 0x%02hhx%02hhx",
+                               ois_check.msg.opCode, ois_check.msg.addr,
+                               ois_check.msg.data[0], ois_check.msg.data[1]));
+    ois_check.msg.addr = 0x20;
+    i2c_transfer(i2c_fd, ROHM_ADDR, 1, ois_check.i2c_buf, 2, ois_check.msg.data, 2);
+    show_log(QString().sprintf("OpCode = 0x%02hhx Addr = 0x%02hhx Data = 0x%02hhx%02hhx",
+                               ois_check.msg.opCode, ois_check.msg.addr,
+                               ois_check.msg.data[0], ois_check.msg.data[1]));
+    // Download Program
+    if (ois_file_download(i2c_fd, prog_file.toUtf8().data(), _OP_FIRM_DWNLD) < 0) {
+        show_log("Download Program Failed!");
+        goto ois_exit;
+    }
+
+
+    // Download Coefficient
+    if (ois_file_download(i2c_fd, coef_file.toUtf8().data(), _OP_COEF_DWNLD) < 0) {
+        show_log("Download Coefficient Failed!");
+        goto ois_exit;
+    }
+
+    // OIS ON
+    ois_switch.package.data[0] = 0x01;
+    i2c_transfer(i2c_fd, ROHM_ADDR, 0, ois_switch.i2c_buf, 2);
+    show_log("OIS ON!");
+    ui->ois->setText("OIS OFF");
+    ois_on = true;
+
+ois_exit:
+    timer->start();
+    return;
+}
+
+void MainWindow::show_log(QString log)
+{
+    ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + log);
 }
