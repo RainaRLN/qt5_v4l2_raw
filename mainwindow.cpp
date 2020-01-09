@@ -26,6 +26,9 @@ MainWindow::MainWindow(QWidget *parent) :
     QDesktopWidget *desktop = QApplication::desktop();
     move((desktop->width()-this->width())/2, (desktop->height()-this->height())/2);
 
+    d = new HoughParm(WIDTH, HEIGHT, this);
+    d->setModal(false);
+
     grbg = static_cast<unsigned char *>(malloc(WIDTH * HEIGHT * sizeof(char)));
     if(nullptr == grbg)
     {
@@ -43,9 +46,10 @@ MainWindow::MainWindow(QWidget *parent) :
     set_fmt();  // 设置当前格式
     init_reqbuf();  // 申请缓冲区
     stream_on();
-
+    this->show_offset = 0;
     ui->image->setScaledContents(true);
     qs = ui->image->rect().size();
+    ui->centroid->setText(QString().sprintf("(%d, %d)", WIDTH/2, HEIGHT/2));
 
     connect(timer, SIGNAL(timeout()), this, SLOT(showImage()));
     i2c_fd = open_i2cdev(I2C_DEV);
@@ -102,8 +106,13 @@ void MainWindow::showImage()
 {
     get_frame(reinterpret_cast<void **>(&bggr), &uDataLength);
     GRBG2BGR(WIDTH, HEIGHT, bggr, bgr);
-    QImage *tempImage = new QImage(static_cast<const uchar*>(bgr), WIDTH ,HEIGHT, WIDTH*3, QImage::Format_RGB888);
-    ui->image->setPixmap(QPixmap::fromImage((*tempImage)).scaled(qs));
+    if (this->show_offset) {
+        d->handle(bgr, 1);
+        ui->offset->setText(QString().sprintf("(%d, %d)", d->x1, d->y1));
+    }
+    tempImage = new QImage(static_cast<const uchar*>(bgr), WIDTH ,HEIGHT, WIDTH*3, QImage::Format_RGB888);
+
+    ui->image->setPixmap(QPixmap::fromImage((*tempImage)));
     //ui->image->setPixmap(QPixmap::fromImage((*tempImage).mirrored(false, true)).scaled(qs));
 }
 
@@ -254,4 +263,19 @@ ois_exit:
 void MainWindow::show_log(QString log)
 {
     ui->showLog->append("[" + QDateTime::currentDateTime().toString() + "] " + log);
+}
+
+void MainWindow::on_get_centroid_clicked()
+{
+    get_frame(reinterpret_cast<void **>(&bggr), &uDataLength);
+    GRBG2BGR(WIDTH, HEIGHT, bggr, bgr);
+    d->show();
+    d->handle(bgr, 2);
+    ui->centroid->setText(QString().sprintf("(%d, %d)", d->x, d->y));
+    ui->offset->setText(QString().sprintf("(%d, %d)", d->x1, d->y1));
+}
+
+void MainWindow::on_show_offset_clicked()
+{
+    this->show_offset = (++(this->show_offset) % 2);
 }

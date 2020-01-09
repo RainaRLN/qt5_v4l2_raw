@@ -39,6 +39,7 @@ LIBS += -L /usr/local/lib/ -lopencv_imgproc
 SOURCES += \
         capture.cpp \
     config.cpp \
+    houghparm.cpp \
         main.cpp \
         mainwindow.cpp \
     convert.cpp
@@ -47,9 +48,11 @@ HEADERS += \
         capture.h \
         config.h \
         convert.h \
+        houghparm.h \
         mainwindow.h
 
 FORMS += \
+        houghparm.ui \
         mainwindow.ui
 
 # Default rules for deployment.

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QTimer>
 #include <QDebug>
+#include "houghparm.h"
 
 namespace Ui {
 class MainWindow;
@@ -35,13 +36,19 @@ private slots:
 
     void on_ois_clicked();
 
+    void on_get_centroid_clicked();
+
+    void on_show_offset_clicked();
+
 private:
     Ui::MainWindow *ui;
     QSize qs;
     QTimer *timer = new QTimer();
     QString dir = "/home/firefly";
-    QImage *tempImage;
     int i2c_fd;
+    QImage *tempImage;
+    HoughParm *d;
+    int show_offset;
 };
 
 #endif // MAINWINDOW_H
